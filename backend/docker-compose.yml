@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bombom
+      POSTGRES_PASSWORD: bombom_dev_password
+      POSTGRES_DB: bombom
+    ports:
+      - "5432:5432"
+    volumes:
+      - bombom_pg_data:/var/lib/postgresql/data
+      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bombom"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bombom:bombom_dev_password@postgres:5432/bombom
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me}
+      PORT: 4000
+      NODE_ENV: development
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"
+
+volumes:
+  bombom_pg_data:
